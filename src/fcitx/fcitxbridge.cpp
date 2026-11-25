@@ -240,20 +240,25 @@ void FcitxBridge::kwinActiveChanged()
             setKWinWantsKeyboard(false);
             return;
         }
-        // KWin's own rule for showing a keyboard on this text field: the last input came from a touch screen or a pen,
-        // the visibility mode, and "Only when in Tablet Mode"
-        auto willShow = QDBusMessage::createMethodCall(s_kwinName, s_kwinPath, s_kwinInterface, u"willShowOnActive"_s);
-        auto showWatcher = new QDBusPendingCallWatcher(m_bus.asyncCall(willShow), this);
-        connect(showWatcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *showCall) {
-            showCall->deleteLater();
-            const QDBusPendingReply<bool> showReply = *showCall;
-            if (showReply.isError()) {
-                qCWarning(PlasmaKeyboard) << "Cannot ask KWin whether to show the keyboard:" << showReply.error().message();
-                return;
-            }
-            qCDebug(PlasmaKeyboard) << "KWin: text field active, show the keyboard:" << showReply.value();
-            setKWinWantsKeyboard(showReply.value());
-        });
+        askKWinWhetherToShow();
+    });
+}
+
+void FcitxBridge::askKWinWhetherToShow()
+{
+    // KWin's own rule for showing a keyboard on the active text field: the last input came from a touch screen or a pen,
+    // the visibility mode, and "Only when in Tablet Mode"
+    auto willShow = QDBusMessage::createMethodCall(s_kwinName, s_kwinPath, s_kwinInterface, u"willShowOnActive"_s);
+    auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(willShow), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<bool> reply = *call;
+        if (reply.isError()) {
+            qCWarning(PlasmaKeyboard) << "Cannot ask KWin whether to show the keyboard:" << reply.error().message();
+            return;
+        }
+        qCDebug(PlasmaKeyboard) << "KWin: text field active, show the keyboard:" << reply.value();
+        setKWinWantsKeyboard(reply.value());
     });
 }
 
@@ -394,7 +399,11 @@ void FcitxBridge::switchInputMethod(const QString &uniqueName)
 {
     auto call = QDBusMessage::createMethodCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"SetCurrentIM"_s);
     call << uniqueName;
-    m_bus.asyncCall(call);
+    auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(call), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *switched) {
+        switched->deleteLater();
+        readCurrentInputMethod();
+    });
 }
 
 void FcitxBridge::hide()
@@ -408,6 +417,13 @@ void FcitxBridge::hide()
 void FcitxBridge::fcitxShow()
 {
     setFcitxShown(true);
+    // Fcitx 5 asks to show at every focus change while its keyboard mode is on; KWin says whether that change came from a
+    // touch or a pen (a touch on another text field brings the keyboard back, a click does not)
+    if (!m_kwinWants) {
+        askKWinWhetherToShow();
+    }
+    // Fcitx 5 tells its keyboard which input method is active only while its keyboard mode is on: read it now
+    readCurrentInputMethod();
 }
 
 void FcitxBridge::fcitxHide()

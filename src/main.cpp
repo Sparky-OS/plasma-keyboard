@@ -120,17 +120,16 @@ int main(int argc, char **argv)
                 exit(1);
             }
             // A layer at the bottom of the screen that never takes the keyboard focus: the text field keeps it, and with
-            // it Fcitx 5's input context. The exclusive zone keeps maximized windows clear of the keys.
+            // it Fcitx 5's input context. Its scope makes it a dock for KWin, which keeps docks at the screen's plane on a
+            // 3D output, as it keeps its own input panel (any other scope is a normal window, which KWin sinks when it is
+            // not the active one). No exclusive zone: the windows under the keys stay as they are.
             auto layer = LayerShellQt::Window::get(window);
-            layer->setScope(QStringLiteral("plasma-keyboard-fcitx"));
+            layer->setScope(QStringLiteral("dock"));
             layer->setLayer(LayerShellQt::Window::LayerOverlay);
             layer->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom | LayerShellQt::Window::AnchorLeft
                                                             | LayerShellQt::Window::AnchorRight));
             layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
-            layer->setExclusiveZone(window->height());
-            QObject::connect(window, &QWindow::heightChanged, layer, [layer](int height) {
-                layer->setExclusiveZone(height);
-            });
+            layer->setExclusiveZone(0);
         });
         view.setInitialProperties({{QStringLiteral("bridge"), QVariant::fromValue(bridge)}});
         view.load(QUrl(QStringLiteral("qrc:/qt/qml/org/kde/plasma/keyboard/FcitxMain.qml")));

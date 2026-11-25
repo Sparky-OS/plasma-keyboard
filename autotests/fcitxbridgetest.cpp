@@ -210,6 +210,7 @@ private Q_SLOTS:
     void testWhyNotNeeded();
     void testShownWhenKWinShowsAKeyboard();
     void testNotShownForTheMouse();
+    void testShownWhenATouchMovesTheFocus();
     void testKeysReachFcitx();
     void testCandidates();
     void testInputMethods();
@@ -398,6 +399,23 @@ void FcitxBridgeTest::testNotShownForTheMouse()
     // Fcitx 5 still in its keyboard mode from an earlier touch asks to show: KWin's rule wins
     m_bridge->fcitxShow();
     QVERIFY(!m_bridge->isVisible());
+}
+
+void FcitxBridgeTest::testShownWhenATouchMovesTheFocus()
+{
+    startBridge();
+    if (QTest::currentTestResolved()) {
+        return;
+    }
+    // a click gives a text field the focus: no keyboard
+    m_kwin->setState(true, false);
+    QTest::qWait(300);
+    QVERIFY(!m_bridge->isVisible());
+    // a touch on another field: KWin stays active (no activeChanged) and now says it would show a keyboard; Fcitx 5, in its
+    // keyboard mode, asks its keyboard to show at the focus change
+    m_kwin->m_willShow = true;
+    m_bridge->fcitxShow();
+    QTRY_VERIFY(m_bridge->isVisible());
 }
 
 void FcitxBridgeTest::testKeysReachFcitx()

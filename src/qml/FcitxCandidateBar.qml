@@ -140,6 +140,12 @@ Item {
             }
         }
 
+        // while the input methods are listed, they line up after the button
+        Item {
+            visible: bar.listingInputMethods
+            Layout.fillWidth: true
+        }
+
         BarButton {
             visible: !bar.listingInputMethods && bar.bridge.hasNextPage
             label: "›"

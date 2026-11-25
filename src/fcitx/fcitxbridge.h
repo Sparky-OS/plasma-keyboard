@@ -127,6 +127,7 @@ private Q_SLOTS:
 
 private:
     void askFcitxToShow();
+    void askKWinWhetherToShow();
     void setKWinWantsKeyboard(bool wants);
     void setFcitxShown(bool shown);
     void enterPlainTyping(const QString &reason);
