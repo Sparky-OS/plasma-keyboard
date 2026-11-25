@@ -141,12 +141,24 @@ add_subdirectory(styles)
 add_subdirectory(qmlplugin)
 
 install(DIRECTORY layouts DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
-install(DIRECTORY layouts-fcitx DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
-# Fcitx 5 mode uses Plasma Keyboard's own layout for every locale layouts-fcitx does not hold: a relative link each
+# The layouts of Fcitx 5 mode (layouts-fcitx). Korean and Chinese (Taiwan): QWERTY keys labelled as Fcitx 5's engine reads
+# them, their other pages Qt Virtual Keyboard's fallback (empty markers). Japanese and Chinese (China): the fallback layout,
+# whose Latin keys Mozc and Pinyin read. Every other locale: Plasma Keyboard's own layout. Markers and links are made here,
+# at install: a Debian source's patch cannot carry an empty file or a link.
+set(_fcitx_layouts ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard/layouts-fcitx)
+foreach(_layout ko_KR zh_TW)
+    install(FILES layouts-fcitx/${_layout}/main.qml DESTINATION ${_fcitx_layouts}/${_layout})
+    foreach(_page dialpad digits handwriting numbers symbols)
+        install(CODE "file(TOUCH \"\$ENV{DESTDIR}${_fcitx_layouts}/${_layout}/${_page}.fallback\")")
+    endforeach()
+endforeach()
+foreach(_layout ja_JP zh_CN)
+    install(CODE "file(CREATE_LINK ../layouts/fallback \"\$ENV{DESTDIR}${_fcitx_layouts}/${_layout}\" SYMBOLIC)")
+endforeach()
 file(GLOB _plasma_keyboard_layouts RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/layouts ${CMAKE_CURRENT_SOURCE_DIR}/layouts/*)
 foreach(_layout ${_plasma_keyboard_layouts})
-    if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/layouts-fcitx/${_layout})
-        install(CODE "file(CREATE_LINK ../layouts/${_layout} \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard/layouts-fcitx/${_layout}\" SYMBOLIC)")
+    if(NOT _layout MATCHES "^(ko_KR|zh_TW|ja_JP|zh_CN)$")
+        install(CODE "file(CREATE_LINK ../layouts/${_layout} \"\$ENV{DESTDIR}${_fcitx_layouts}/${_layout}\" SYMBOLIC)")
     endif()
 endforeach()
 install(DIRECTORY overlay/diacritics DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
