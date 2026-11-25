@@ -75,6 +75,26 @@ KCM.ScrollViewKCM {
         }
 
         QQC2.CheckBox {
+            id: showWithFcitx
+            Kirigami.FormData.label: i18n("Fcitx 5:")
+            text: i18n("Show this keyboard when Fcitx 5 is the input method")
+
+            checked: kcm.showWithFcitx
+            onCheckedChanged: {
+                kcm.showWithFcitx = checked;
+                checked = Qt.binding(() => kcm.showWithFcitx);
+            }
+        }
+
+        QQC2.Label {
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 25
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+            text: i18n("Fcitx 5 converts the keys and shows its candidates above them. Takes effect at the next login.")
+        }
+
+        QQC2.CheckBox {
             id: diacriticsCheckbox
             Kirigami.FormData.label: i18n("Alternate characters:")
             text: i18n("Show popup when holding a key")

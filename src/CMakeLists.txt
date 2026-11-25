@@ -11,6 +11,7 @@ add_executable(plasma-keyboard)
 ecm_add_qtwayland_client_protocol(plasma-keyboard PROTOCOL ${WaylandProtocols_DATADIR}/unstable/input-method/input-method-unstable-v1.xml BASENAME input-method-unstable-v1)
 ecm_add_qtwayland_client_protocol(plasma-keyboard PROTOCOL ${WaylandProtocols_DATADIR}/unstable/text-input/text-input-unstable-v1.xml BASENAME text-input-unstable-v1)
 ecm_add_qtwayland_client_protocol(plasma-keyboard PROTOCOL "${Wayland_DATADIR}/wayland.xml" BASENAME wayland)
+ecm_add_qtwayland_client_protocol(plasma-keyboard PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/fake-input.xml BASENAME fake-input)
 
 target_sources(plasma-keyboard PRIVATE
     main.cpp
@@ -44,6 +45,12 @@ target_sources(plasma-keyboard PRIVATE
     overlay/prefixquerytrigger.h
     overlay/textexpansiontrigger.cpp
     overlay/textexpansiontrigger.h
+    fcitx/fakekeyboard.cpp
+    fcitx/fakekeyboard.h
+    fcitx/fcitxbridge.cpp
+    fcitx/fcitxbridge.h
+    fcitx/fcitxinputitem.cpp
+    fcitx/fcitxinputitem.h
 )
 
 if(PLASMA_KEYBOARD_VIBRATION_ENABLED)
@@ -86,6 +93,8 @@ ecm_target_qml_sources(plasma-keyboard SOURCES
     qml/LanguagePopupDelegate.qml
     qml/DiacriticsOverlay.qml
     qml/OverlayWindow.qml
+    qml/FcitxMain.qml
+    qml/FcitxCandidateBar.qml
 )
 ecm_finalize_qml_module(plasma-keyboard)
 
@@ -96,6 +105,7 @@ target_include_directories(plasma-keyboard PRIVATE
     # Add directories to include path for QML type registration
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/overlay
+    ${CMAKE_CURRENT_SOURCE_DIR}/fcitx
 )
 
 target_link_libraries(plasma-keyboard
@@ -106,6 +116,7 @@ target_link_libraries(plasma-keyboard
     KF6::ConfigCore
     KF6::ConfigGui
     KF6::Crash
+    LayerShellQt::Interface
     PkgConfig::XKBCommon
     Plasma::PlasmaQuick
     Qt::DBus
@@ -120,10 +131,17 @@ target_link_libraries(plasma-keyboard
 install(TARGETS plasma-keyboard ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 install(PROGRAMS org.kde.plasma.keyboard.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 
+# Plasma Keyboard as Fcitx 5's keyboard: started at login (it ends at once unless KWin's input method is Fcitx 5 and the
+# showWithFcitx setting is on), and an application entry whose absolute Exec lets KWin grant it its fake input device
+configure_file(org.kde.plasma.keyboard.fcitx.desktop.in ${CMAKE_CURRENT_BINARY_DIR}/org.kde.plasma.keyboard.fcitx.desktop @ONLY)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/org.kde.plasma.keyboard.fcitx.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.kde.plasma.keyboard.fcitx.desktop DESTINATION ${KDE_INSTALL_AUTOSTARTDIR})
+
 add_subdirectory(styles)
 add_subdirectory(qmlplugin)
 
 install(DIRECTORY layouts DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
+install(DIRECTORY layouts-fcitx DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
 install(DIRECTORY overlay/diacritics DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
 
 install(

@@ -18,8 +18,11 @@
  * the option to use the default Qt layouts if they prefer.
  *
  * Helper function used by both the main application and the KCM, to ensure they both use the same layouts path.
+ *
+ * With @p fcitx, the layouts of Fcitx 5 mode (layouts-fcitx): Plasma Keyboard's own, and for Korean and Chinese
+ * (Taiwan) its QWERTY keys labelled as Fcitx 5's engine reads them.
  */
-inline void initLayoutsPath()
+inline void initLayoutsPath(bool fcitx = false)
 {
     // PLASMA_KEYBOARD_USE_QT_LAYOUTS - whether to use Qt's builtin keyboard layouts rather than our own.
     const bool useQtLayouts = qEnvironmentVariableIntValue("PLASMA_KEYBOARD_USE_QT_LAYOUTS") != 0;
@@ -30,7 +33,7 @@ inline void initLayoutsPath()
         // Loop over all "/usr/share" paths and check if layouts folder exists
         const QStringList locations = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const QString &basePath : locations) {
-            QString layoutsDir = basePath + QStringLiteral("/plasma/keyboard/layouts");
+            QString layoutsDir = basePath + (fcitx ? QStringLiteral("/plasma/keyboard/layouts-fcitx") : QStringLiteral("/plasma/keyboard/layouts"));
 
             // Check if path exists
             if (QDir(layoutsDir).exists()) {

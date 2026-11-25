@@ -37,6 +37,10 @@
             <label>Whether holding a physical key shows diacritic options.</label>
             <default>true</default>
         </entry>
+        <entry key="showWithFcitx" type="bool">
+            <label>Whether Plasma Keyboard shows as Fcitx 5's on-screen keyboard when Fcitx 5 is KWin's input method.</label>
+            <default>false</default>
+        </entry>
         <entry key="diacriticsHoldThresholdMs" type="int">
             <label>Delay (ms) before showing diacritics when holding a physical key.</label>
             <min>100</min>

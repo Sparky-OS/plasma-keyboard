@@ -56,6 +56,8 @@ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
 )
 
 find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
+find_package(LayerShellQt ${PROJECT_DEP_VERSION} REQUIRED)
+find_package(PlasmaWaylandProtocols REQUIRED)
 
 ecm_set_disabled_deprecation_versions(QT 6.11.0
     KF 6.26.0

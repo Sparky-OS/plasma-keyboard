@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Daniel Campos Ramos
+# SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+
+[Desktop Entry]
+Type=Application
+Name=Plasma Keyboard for Fcitx 5
+Name[de]=Plasma-Tastatur für Fcitx 5
+Name[es]=Teclado de Plasma para Fcitx 5
+Name[fr]=Clavier Plasma pour Fcitx 5
+Name[ja]=Fcitx 5 用 Plasma キーボード
+Name[ko]=Fcitx 5용 Plasma 키보드
+Name[pl]=Klawiatura Plasmy dla Fcitx 5
+Name[pt_BR]=Teclado do Plasma para o Fcitx 5
+Name[zh_CN]=用于 Fcitx 5 的 Plasma 键盘
+Name[zh_TW]=用於 Fcitx 5 的 Plasma 鍵盤
+Comment=The on-screen keyboard of Fcitx 5's input methods
+Comment[de]=Die Bildschirmtastatur der Eingabemethoden von Fcitx 5
+Comment[es]=El teclado en pantalla de los métodos de entrada de Fcitx 5
+Comment[fr]=Le clavier virtuel des méthodes de saisie de Fcitx 5
+Comment[ja]=Fcitx 5 の入力メソッド用のスクリーンキーボード
+Comment[ko]=Fcitx 5 입력기의 화상 키보드
+Comment[pl]=Klawiatura ekranowa metod wprowadzania Fcitx 5
+Comment[pt_BR]=O teclado virtual dos métodos de entrada do Fcitx 5
+Comment[zh_CN]=Fcitx 5 输入法的屏幕键盘
+Comment[zh_TW]=Fcitx 5 輸入法的螢幕鍵盤
+Exec=@KDE_INSTALL_FULL_BINDIR@/plasma-keyboard --fcitx
+Icon=input-keyboard-virtual
+NoDisplay=true
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=1
+X-KDE-Wayland-Interfaces=org_kde_kwin_fake_input

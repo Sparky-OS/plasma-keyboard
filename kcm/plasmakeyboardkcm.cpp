@@ -127,6 +127,23 @@ void PlasmaKeyboardKcm::setAutoCapitalizationEnabled(bool autoCapitalizationEnab
     setNeedsSave(true);
 }
 
+bool PlasmaKeyboardKcm::showWithFcitx() const
+{
+    return m_showWithFcitx;
+}
+
+void PlasmaKeyboardKcm::setShowWithFcitx(bool showWithFcitx)
+{
+    if (showWithFcitx == m_showWithFcitx) {
+        return;
+    }
+
+    m_showWithFcitx = showWithFcitx;
+    Q_EMIT showWithFcitxChanged();
+
+    setNeedsSave(true);
+}
+
 bool PlasmaKeyboardKcm::diacriticsPopupEnabled() const
 {
     return m_diacriticsPopupEnabled;
@@ -175,6 +192,7 @@ void PlasmaKeyboardKcm::load()
     Q_EMIT enabledLocalesChanged();
     setKeyboardNavigationEnabled(PlasmaKeyboardSettings::self()->keyboardNavigationEnabled());
     setAutoCapitalizationEnabled(PlasmaKeyboardSettings::self()->autoCapitalizationEnabled());
+    setShowWithFcitx(PlasmaKeyboardSettings::self()->showWithFcitx());
     setDiacriticsPopupEnabled(PlasmaKeyboardSettings::self()->diacriticsPopupEnabled());
     setDiacriticsHoldThresholdMs(PlasmaKeyboardSettings::self()->diacriticsHoldThresholdMs());
 
@@ -188,6 +206,7 @@ void PlasmaKeyboardKcm::save()
     PlasmaKeyboardSettings::self()->setEnabledLocales(m_enabledLocales);
     PlasmaKeyboardSettings::self()->setKeyboardNavigationEnabled(m_keyboardNavigationEnabled);
     PlasmaKeyboardSettings::self()->setAutoCapitalizationEnabled(m_autoCapitalizationEnabled);
+    PlasmaKeyboardSettings::self()->setShowWithFcitx(m_showWithFcitx);
     PlasmaKeyboardSettings::self()->setDiacriticsPopupEnabled(m_diacriticsPopupEnabled);
     PlasmaKeyboardSettings::self()->setDiacriticsHoldThresholdMs(m_diacriticsHoldThresholdMs);
     PlasmaKeyboardSettings::self()->save();

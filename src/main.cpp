@@ -1,11 +1,13 @@
 /*
     SPDX-FileCopyrightText: 2024 Aleix Pol i Gonzalez <aleixpol@kde.org>
     SPDX-FileCopyrightText: 2025 Kristen McWilliam <kristen@kde.org>
+    SPDX-FileCopyrightText: 2026 Daniel Campos Ramos
 
     SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 */
 
 #include "config-plasma-keyboard.h"
+#include "fcitx/fcitxbridge.h"
 #include "inputpanelintegration.h"
 #include "layoutpathhelper.h"
 #include "logging.h"
@@ -18,6 +20,8 @@
 #include <KLocalizedQmlContext>
 #include <KLocalizedString>
 
+#include <LayerShellQt/Window>
+
 #include <QCommandLineParser>
 #include <QDir>
 #include <QGuiApplication>
@@ -26,11 +30,21 @@
 #include <QWindow>
 #include <qpa/qwindowsysteminterface.h>
 
+#include <cstring>
+
 int main(int argc, char **argv)
 {
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
 
-    initLayoutsPath();
+    // --fcitx: Plasma Keyboard as Fcitx 5's keyboard, started at login while Fcitx 5 is KWin's input method
+    bool fcitxMode = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--fcitx") == 0) {
+            fcitxMode = true;
+        }
+    }
+
+    initLayoutsPath(fcitxMode);
 
     QGuiApplication application(argc, argv);
 
@@ -56,8 +70,18 @@ int main(int argc, char **argv)
     {
         QCommandLineParser parser;
         aboutData.setupCommandLine(&parser);
+        parser.addOption(QCommandLineOption(QStringLiteral("fcitx"),
+                                            i18nc("@info:shell", "Run as the on-screen keyboard of Fcitx 5, when Fcitx 5 is KWin's input method")));
         parser.process(application);
         aboutData.processCommandLine(&parser);
+    }
+
+    if (fcitxMode) {
+        const QString reason = FcitxBridge::whyNotNeeded();
+        if (!reason.isEmpty()) {
+            qInfo().noquote() << "plasma-keyboard --fcitx:" << reason;
+            return 0;
+        }
     }
 
     if (!PLASMA_KEYBOARD_SOUND_ENABLED) {
@@ -82,6 +106,37 @@ int main(int argc, char **argv)
 
     QQmlApplicationEngine view;
     KLocalization::setupLocalizedContext(&view);
+
+    if (fcitxMode) {
+        auto bridge = new FcitxBridge(&application);
+        if (!bridge->start()) {
+            qCCritical(PlasmaKeyboard) << "Cannot be Fcitx 5's on-screen keyboard:" << bridge->problem();
+            return 1;
+        }
+        QObject::connect(&view, &QQmlApplicationEngine::objectCreated, &application, [](QObject *object) {
+            auto window = qobject_cast<QWindow *>(object);
+            if (!window) {
+                qCCritical(PlasmaKeyboard) << "The keyboard for Fcitx 5 has no window";
+                exit(1);
+            }
+            // A layer at the bottom of the screen that never takes the keyboard focus: the text field keeps it, and with
+            // it Fcitx 5's input context. The exclusive zone keeps maximized windows clear of the keys.
+            auto layer = LayerShellQt::Window::get(window);
+            layer->setScope(QStringLiteral("plasma-keyboard-fcitx"));
+            layer->setLayer(LayerShellQt::Window::LayerOverlay);
+            layer->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom | LayerShellQt::Window::AnchorLeft
+                                                            | LayerShellQt::Window::AnchorRight));
+            layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
+            layer->setExclusiveZone(window->height());
+            QObject::connect(window, &QWindow::heightChanged, layer, [layer](int height) {
+                layer->setExclusiveZone(height);
+            });
+        });
+        view.setInitialProperties({{QStringLiteral("bridge"), QVariant::fromValue(bridge)}});
+        view.load(QUrl(QStringLiteral("qrc:/qt/qml/org/kde/plasma/keyboard/FcitxMain.qml")));
+        qCDebug(PlasmaKeyboard) << "Starting Plasma Keyboard as Fcitx 5's keyboard";
+        return application.exec();
+    }
 
     QObject::connect(&view, &QQmlApplicationEngine::objectCreated, &application, [](QObject *object) {
         auto window = qobject_cast<QWindow *>(object);
