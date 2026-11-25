@@ -49,6 +49,15 @@ const QString s_kwinInterface = u"org.kde.kwin.VirtualKeyboard"_s;
 // How long Fcitx 5 has to answer a request to show its keyboard before the keys type plain text
 constexpr int s_answerTimeoutMs = 1500;
 
+// A call to Fcitx 5 never starts it: a Fcitx 5 started by D-Bus activation is not KWin's input method (it would bind KWin's
+// input method protocol beside it and take KWin's input panel), so an absent Fcitx 5 answers "no such service" instead
+QDBusMessage fcitxCall(const QString &service, const QString &path, const QString &interface, const QString &method)
+{
+    QDBusMessage message = QDBusMessage::createMethodCall(service, path, interface, method);
+    message.setAutoStartService(false);
+    return message;
+}
+
 QHash<uint, uint> usKeycodes()
 {
     QHash<uint, uint> keycodes;
@@ -281,7 +290,7 @@ void FcitxBridge::askFcitxToShow()
     }
     // Puts Fcitx 5 in its on-screen keyboard mode, which makes its keyboard addon the user interface; the addon then
     // calls ShowVirtualKeyboard on this keyboard
-    auto show = QDBusMessage::createMethodCall(s_fcitxName, s_fcitxKeyboardPath, s_fcitxKeyboardInterface, u"ShowVirtualKeyboard"_s);
+    auto show = fcitxCall(s_fcitxName, s_fcitxKeyboardPath, s_fcitxKeyboardInterface, u"ShowVirtualKeyboard"_s);
     auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(show), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
         call->deleteLater();
@@ -363,7 +372,7 @@ void FcitxBridge::sendKey(uint keysym, uint states, bool release)
         m_fakeKeyboard->sendKeysym(keysym, !release);
         return;
     }
-    auto key = QDBusMessage::createMethodCall(s_backendName, s_backendPath, s_backendInterface, u"ProcessKeyEvent"_s);
+    auto key = fcitxCall(s_backendName, s_backendPath, s_backendInterface, u"ProcessKeyEvent"_s);
     key << keysym << keycodeFor(keysym) << states << release << uint(QDateTime::currentMSecsSinceEpoch() & 0xffffffff);
     auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(key), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, keysym, release](QDBusPendingCallWatcher *call) {
@@ -380,24 +389,24 @@ void FcitxBridge::sendKey(uint keysym, uint states, bool release)
 
 void FcitxBridge::selectCandidate(int index)
 {
-    auto call = QDBusMessage::createMethodCall(s_backendName, s_backendPath, s_backendInterface, u"SelectCandidate"_s);
+    auto call = fcitxCall(s_backendName, s_backendPath, s_backendInterface, u"SelectCandidate"_s);
     call << index;
     m_bus.asyncCall(call);
 }
 
 void FcitxBridge::previousPage()
 {
-    m_bus.asyncCall(QDBusMessage::createMethodCall(s_backendName, s_backendPath, s_backendInterface, u"PrevPage"_s));
+    m_bus.asyncCall(fcitxCall(s_backendName, s_backendPath, s_backendInterface, u"PrevPage"_s));
 }
 
 void FcitxBridge::nextPage()
 {
-    m_bus.asyncCall(QDBusMessage::createMethodCall(s_backendName, s_backendPath, s_backendInterface, u"NextPage"_s));
+    m_bus.asyncCall(fcitxCall(s_backendName, s_backendPath, s_backendInterface, u"NextPage"_s));
 }
 
 void FcitxBridge::switchInputMethod(const QString &uniqueName)
 {
-    auto call = QDBusMessage::createMethodCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"SetCurrentIM"_s);
+    auto call = fcitxCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"SetCurrentIM"_s);
     call << uniqueName;
     auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(call), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *switched) {
@@ -408,7 +417,7 @@ void FcitxBridge::switchInputMethod(const QString &uniqueName)
 
 void FcitxBridge::hide()
 {
-    m_bus.asyncCall(QDBusMessage::createMethodCall(s_fcitxName, s_fcitxKeyboardPath, s_fcitxKeyboardInterface, u"HideVirtualKeyboard"_s));
+    m_bus.asyncCall(fcitxCall(s_fcitxName, s_fcitxKeyboardPath, s_fcitxKeyboardInterface, u"HideVirtualKeyboard"_s));
     m_answerTimer.stop();
     m_kwinWants = false;
     updateVisible();
@@ -477,7 +486,7 @@ void FcitxBridge::fcitxInputMethodListChanged()
 void FcitxBridge::refreshInputMethods()
 {
     // AvailableInputMethods: a(ssssssb) uniqueName, name, nativeName, icon, label, languageCode, configurable
-    auto available = QDBusMessage::createMethodCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"AvailableInputMethods"_s);
+    auto available = fcitxCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"AvailableInputMethods"_s);
     auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(available), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
         call->deleteLater();
@@ -505,7 +514,7 @@ void FcitxBridge::refreshInputMethods()
 
 void FcitxBridge::readInputMethodGroup(const QHash<QString, QVariantMap> &known)
 {
-    auto group = QDBusMessage::createMethodCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"CurrentInputMethodGroup"_s);
+    auto group = fcitxCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"CurrentInputMethodGroup"_s);
     auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(group), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, known](QDBusPendingCallWatcher *call) {
         call->deleteLater();
@@ -515,7 +524,7 @@ void FcitxBridge::readInputMethodGroup(const QHash<QString, QVariantMap> &known)
             return;
         }
         // InputMethodGroupInfo(group): s default layout, a(ss) uniqueName and layout, in the order the person set
-        auto info = QDBusMessage::createMethodCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"InputMethodGroupInfo"_s);
+        auto info = fcitxCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"InputMethodGroupInfo"_s);
         info << groupReply.value();
         auto infoWatcher = new QDBusPendingCallWatcher(m_bus.asyncCall(info), this);
         connect(infoWatcher, &QDBusPendingCallWatcher::finished, this, [this, known](QDBusPendingCallWatcher *infoCall) {
@@ -544,7 +553,7 @@ void FcitxBridge::readInputMethodGroup(const QHash<QString, QVariantMap> &known)
 
 void FcitxBridge::readCurrentInputMethod()
 {
-    auto current = QDBusMessage::createMethodCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"CurrentInputMethod"_s);
+    auto current = fcitxCall(s_fcitxName, s_controllerPath, s_controllerInterface, u"CurrentInputMethod"_s);
     auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(current), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
         call->deleteLater();
