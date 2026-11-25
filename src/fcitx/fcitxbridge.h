@@ -115,6 +115,8 @@ public:
     void fcitxInputMethodListChanged();
 
 Q_SIGNALS:
+    // KWin's active output (the screen of the last touch), asked when a field requests the keyboard while it is shown
+    void activeOutputNamed(const QString &name);
     void visibleChanged();
     void plainTypingChanged();
     void problemChanged();
@@ -140,6 +142,7 @@ private:
     void updateLayoutLocale();
     void updateVisible();
     void tellKWinShown(bool shown);
+    void askKWinActiveOutput();
     uint keycodeFor(uint keysym) const;
 
     QDBusConnection m_bus;

@@ -130,6 +130,8 @@ int main(int argc, char **argv)
                                                             | LayerShellQt::Window::AnchorRight));
             layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
             layer->setExclusiveZone(0);
+            // on the screen of the last touch, as KWin places its own input panel on its active output
+            layer->setWantsToBeOnActiveScreen(true);
         });
         view.setInitialProperties({{QStringLiteral("bridge"), QVariant::fromValue(bridge)}});
         view.load(QUrl(QStringLiteral("qrc:/qt/qml/org/kde/plasma/keyboard/FcitxMain.qml")));

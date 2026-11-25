@@ -50,6 +50,7 @@ protected:
 private:
     void sendKeyEvent(QKeyEvent *event, bool release);
     void updateVisibility();
+    void followActiveOutput(const QString &name);
 
     QPointer<FcitxBridge> m_bridge;
 };

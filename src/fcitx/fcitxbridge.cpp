@@ -297,9 +297,29 @@ void FcitxBridge::askKWinWhetherToShow()
     });
 }
 
+void FcitxBridge::askKWinActiveOutput()
+{
+    // KWin's active output follows the last touch, and a layer surface that wants the active screen is put there when it
+    // is mapped: a keyboard already shown on another screen than the touched field is shown again on that one
+    auto ask = QDBusMessage::createMethodCall(s_kwinName, u"/KWin"_s, u"org.kde.KWin"_s, u"activeOutputName"_s);
+    auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(ask), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<QString> reply = *call;
+        if (reply.isError()) {
+            qCWarning(PlasmaKeyboard) << "Cannot read KWin's active output:" << reply.error().message();
+            return;
+        }
+        Q_EMIT activeOutputNamed(reply.value());
+    });
+}
+
 void FcitxBridge::setKWinWantsKeyboard(bool wants)
 {
     m_kwinWants = wants;
+    if (wants && m_visible) {
+        askKWinActiveOutput();
+    }
     if (wants) {
         askFcitxToShow();
     } else {

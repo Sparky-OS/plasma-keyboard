@@ -11,6 +11,7 @@
 #include <QInputMethod>
 #include <QKeyEvent>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QtGui/private/qxkbcommon_p.h>
 #include <qpa/qwindowsysteminterface.h>
 
@@ -44,6 +45,7 @@ void FcitxInputItem::setBridge(FcitxBridge *bridge)
     m_bridge = bridge;
     if (m_bridge) {
         connect(m_bridge, &FcitxBridge::visibleChanged, this, &FcitxInputItem::updateVisibility);
+        connect(m_bridge, &FcitxBridge::activeOutputNamed, this, &FcitxInputItem::followActiveOutput);
     }
     Q_EMIT bridgeChanged();
     updateVisibility();
@@ -68,6 +70,19 @@ void FcitxInputItem::updateVisibility()
         QGuiApplication::inputMethod()->reset();
         win->setVisible(false);
     }
+}
+
+void FcitxInputItem::followActiveOutput(const QString &name)
+{
+    // the touched field is on another screen than the keyboard: mapped again, its layer surface goes to KWin's active
+    // output (the window wants the active screen)
+    QQuickWindow *win = window();
+    if (!win || !m_bridge || !m_bridge->isVisible() || !win->isVisible() || !win->screen() || win->screen()->name() == name) {
+        return;
+    }
+    qCDebug(PlasmaKeyboard) << "The touched field is on" << name << "and the keyboard on" << win->screen()->name() << "- shown there";
+    win->setVisible(false);
+    updateVisibility();
 }
 
 QVariant FcitxInputItem::inputMethodQuery(Qt::InputMethodQuery query) const

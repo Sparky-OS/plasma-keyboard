@@ -61,6 +61,22 @@ Q_SIGNALS:
     Q_SCRIPTABLE void showRequested();
 };
 
+// KWin's org.kde.KWin on /KWin: the output of the last input (kwin src/dbusinterface.h)
+class FakeKWinMain : public QObject
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.kde.KWin")
+public:
+    QString m_activeOutput = u"Virtual-0"_s;
+    int m_asked = 0;
+public Q_SLOTS:
+    Q_SCRIPTABLE QString activeOutputName()
+    {
+        ++m_asked;
+        return m_activeOutput;
+    }
+};
+
 // Fcitx 5: org.fcitx.Fcitx.VirtualKeyboard1 on /virtualkeyboard of org.fcitx.Fcitx5 (fcitx5 src/ui/virtualkeyboard)
 class FakeFcitxKeyboard : public QObject, protected QDBusContext
 {
@@ -226,6 +242,7 @@ private Q_SLOTS:
     void testPlainTypingWhenFcitxRefuses();
     void testShownAgainWhenTheFieldAsks();
     void testKWinToldWhenShown();
+    void testFollowsTheTouchedScreen();
 
 private:
     void setUpStandIns();
@@ -238,6 +255,7 @@ private:
     FakeFcitxKeyboard *m_fcitxKeyboard = nullptr;
     FakeFcitxBackend *m_backend = nullptr;
     FakeFcitxController *m_controller = nullptr;
+    FakeKWinMain *m_kwinMain = nullptr;
     FcitxBridge *m_bridge = nullptr;
     int m_round = 0;
 };
@@ -264,6 +282,8 @@ void FcitxBridgeTest::setUpStandIns()
     QVERIFY(m_kwinBus.registerObject(u"/VirtualKeyboard"_s,
                                      m_kwin,
                                      QDBusConnection::ExportAllProperties | QDBusConnection::ExportScriptableSlots | QDBusConnection::ExportScriptableSignals));
+    m_kwinMain = new FakeKWinMain;
+    QVERIFY(m_kwinBus.registerObject(u"/KWin"_s, m_kwinMain, QDBusConnection::ExportScriptableSlots));
     QVERIFY(m_kwinBus.registerService(u"org.kde.KWin"_s));
     m_fcitxKeyboard = new FakeFcitxKeyboard(m_fcitxBus, m_backendBus);
     m_backend = new FakeFcitxBackend;
@@ -567,6 +587,25 @@ void FcitxBridgeTest::testKWinToldWhenShown()
     m_kwin->setState(false, false);
     QTRY_VERIFY(!m_bridge->isVisible());
     QTRY_COMPARE(m_kwin->m_shownSaid, (QList<bool>{true, false}));
+}
+
+void FcitxBridgeTest::testFollowsTheTouchedScreen()
+{
+    startBridge();
+    if (QTest::currentTestResolved()) {
+        return;
+    }
+    QSignalSpy named(m_bridge, SIGNAL(activeOutputNamed(QString)));
+    QVERIFY(named.isValid());
+    m_kwin->setState(true, true);
+    QTRY_VERIFY(m_bridge->isVisible());
+    // a field on another screen asks while the keyboard is shown: the bridge asks KWin where the last touch was, so the
+    // keyboard's window can be shown again on that screen
+    m_kwinMain->m_activeOutput = u"Virtual-1"_s;
+    Q_EMIT m_kwin->showRequested();
+    QTRY_VERIFY(!named.isEmpty());
+    QCOMPARE(named.last().at(0).toString(), u"Virtual-1"_s);
+    QVERIFY(m_bridge->isVisible());
 }
 
 QTEST_MAIN(FcitxBridgeTest)
