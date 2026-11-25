@@ -28,6 +28,35 @@ Item {
     implicitHeight: Kirigami.Units.gridUnit * 3
     height: implicitHeight
 
+    // the system's negative-text colour, moved away from the keyboard's background just enough to be read there: a
+    // contrast of 4.5:1 or more (WCAG 2.x, the relative luminance of sRGB)
+    readonly property color problemColor: readableOn(Kirigami.Theme.negativeTextColor, PlasmaKeyboard.BreezeConstants.keyboardBackgroundColor)
+
+    function luminance(c) {
+        function channel(v) {
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+    }
+    function contrast(a, b) {
+        const la = luminance(a);
+        const lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    function readableOn(foreground, background) {
+        // towards white on a dark keyboard, towards black on a light one
+        const target = luminance(background) < 0.18 ? 1 : 0;
+        for (let step = 0; step <= 20; ++step) {
+            const t = step / 20;
+            const c = Qt.rgba(foreground.r + (target - foreground.r) * t, foreground.g + (target - foreground.g) * t,
+                              foreground.b + (target - foreground.b) * t, 1);
+            if (contrast(c, background) >= 4.5) {
+                return c;
+            }
+        }
+        return target ? "white" : "black";
+    }
+
     component BarButton: Rectangle {
         id: button
 
@@ -83,7 +112,7 @@ Item {
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
             text: bar.bridge.problem
-            color: Kirigami.Theme.negativeTextColor
+            color: bar.problemColor
             font.pixelSize: bar.height * 0.3
         }
 

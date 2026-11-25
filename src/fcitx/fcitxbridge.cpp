@@ -227,6 +227,9 @@ bool FcitxBridge::start()
     });
 
     m_bus.connect(s_kwinName, s_kwinPath, s_kwinInterface, u"activeChanged"_s, this, SLOT(kwinActiveChanged()));
+    // a text field asked for the keyboard, also one that already has the focus (a second touch on it): KWin's own rule
+    // decides again, as for a field that becomes active (the edition's KWin 6.7.4-2+stereo3d67 says it)
+    m_bus.connect(s_kwinName, s_kwinPath, s_kwinInterface, u"showRequested"_s, this, SLOT(kwinShowRequested()));
 
     refreshInputMethods();
     kwinActiveChanged();
@@ -250,6 +253,29 @@ void FcitxBridge::kwinActiveChanged()
             return;
         }
         askKWinWhetherToShow();
+    });
+}
+
+void FcitxBridge::kwinShowRequested()
+{
+    qCDebug(PlasmaKeyboard) << "KWin: a text field asked for the keyboard";
+    kwinActiveChanged();
+}
+
+void FcitxBridge::tellKWinShown(bool shown)
+{
+    // KWin keeps the focused window clear of this keyboard's window, as it does for its own input panel; it finds the
+    // window by this process, so no coordinates go with the call
+    auto tell = QDBusMessage::createMethodCall(s_kwinName, s_kwinPath, s_kwinInterface, u"setOnScreenKeyboardShown"_s);
+    tell << shown;
+    auto watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(tell), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<> reply = *call;
+        if (reply.isError() && !m_toldKWinFailure) {
+            m_toldKWinFailure = true;
+            qCWarning(PlasmaKeyboard) << "KWin cannot keep the field typed into clear of this keyboard:" << reply.error().name() << reply.error().message();
+        }
     });
 }
 
@@ -353,6 +379,7 @@ void FcitxBridge::updateVisible()
     if (m_visible != visible) {
         m_visible = visible;
         qCDebug(PlasmaKeyboard) << "Fcitx 5 keyboard visible:" << visible;
+        tellKWinShown(visible);
         Q_EMIT visibleChanged();
     }
 }
@@ -458,7 +485,7 @@ void FcitxBridge::fcitxPreeditArea(const QString &text)
 
 void FcitxBridge::fcitxCandidateArea(const QStringList &candidates, bool hasPrev, bool hasNext, int pageIndex, int globalCursorIndex)
 {
-    Q_UNUSED(pageIndex)
+    qCDebug(PlasmaKeyboard) << "Fcitx 5 candidates:" << candidates << "page" << pageIndex << "previous" << hasPrev << "next" << hasNext;
     m_candidates = candidates;
     m_hasPrev = hasPrev;
     m_hasNext = hasNext;

@@ -44,13 +44,21 @@ public:
         m_willShow = willShow;
         Q_EMIT activeChanged();
     }
+    QList<bool> m_shownSaid;
 public Q_SLOTS:
     Q_SCRIPTABLE bool willShowOnActive()
     {
         return m_willShow;
     }
+    // the edition's KWin 6.7.4-2+stereo3d67: the calling program's layer-shell window is its keyboard, shown or hidden
+    Q_SCRIPTABLE void setOnScreenKeyboardShown(bool shown)
+    {
+        m_shownSaid.append(shown);
+    }
 Q_SIGNALS:
     Q_SCRIPTABLE void activeChanged();
+    // a text field asked for the keyboard, also one that already has the focus
+    Q_SCRIPTABLE void showRequested();
 };
 
 // Fcitx 5: org.fcitx.Fcitx.VirtualKeyboard1 on /virtualkeyboard of org.fcitx.Fcitx5 (fcitx5 src/ui/virtualkeyboard)
@@ -216,6 +224,8 @@ private Q_SLOTS:
     void testInputMethods();
     void testHideKey();
     void testPlainTypingWhenFcitxRefuses();
+    void testShownAgainWhenTheFieldAsks();
+    void testKWinToldWhenShown();
 
 private:
     void setUpStandIns();
@@ -516,6 +526,47 @@ void FcitxBridgeTest::testPlainTypingWhenFcitxRefuses()
     m_bridge->sendKey(XKB_KEY_a, 0, false);
     QTest::qWait(300);
     QVERIFY(m_backend->m_keys.isEmpty());
+}
+
+void FcitxBridgeTest::testShownAgainWhenTheFieldAsks()
+{
+    startBridge();
+    if (QTest::currentTestResolved()) {
+        return;
+    }
+    m_kwin->setState(true, true);
+    QTRY_VERIFY(m_bridge->isVisible());
+    // the hide key: the keyboard goes, the field keeps the focus and KWin stays active (no activeChanged)
+    m_bridge->hide();
+    QVERIFY(!m_bridge->isVisible());
+    QTRY_COMPARE(m_fcitxKeyboard->m_hides, 1);
+    QTest::qWait(300);
+    // a second touch on that field: KWin says a field asked for the keyboard, and would show one for a touch
+    Q_EMIT m_kwin->showRequested();
+    QTRY_VERIFY(m_bridge->isVisible());
+    // the same request after a click: KWin would show no keyboard for the mouse, so none shows
+    m_bridge->hide();
+    QTRY_COMPARE(m_fcitxKeyboard->m_hides, 2);
+    QTest::qWait(300);
+    m_kwin->m_willShow = false;
+    Q_EMIT m_kwin->showRequested();
+    QTest::qWait(500);
+    QVERIFY(!m_bridge->isVisible());
+}
+
+void FcitxBridgeTest::testKWinToldWhenShown()
+{
+    startBridge();
+    if (QTest::currentTestResolved()) {
+        return;
+    }
+    m_kwin->setState(true, true);
+    QTRY_VERIFY(m_bridge->isVisible());
+    QTRY_COMPARE(m_kwin->m_shownSaid, QList<bool>{true});
+    // the field loses the focus: the keyboard hides and KWin hears it, to give the window its place back
+    m_kwin->setState(false, false);
+    QTRY_VERIFY(!m_bridge->isVisible());
+    QTRY_COMPARE(m_kwin->m_shownSaid, (QList<bool>{true, false}));
 }
 
 QTEST_MAIN(FcitxBridgeTest)

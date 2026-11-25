@@ -124,6 +124,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void kwinActiveChanged();
+    void kwinShowRequested();
 
 private:
     void askFcitxToShow();
@@ -138,6 +139,7 @@ private:
     void readCurrentInputMethod();
     void updateLayoutLocale();
     void updateVisible();
+    void tellKWinShown(bool shown);
     uint keycodeFor(uint keysym) const;
 
     QDBusConnection m_bus;
@@ -148,6 +150,7 @@ private:
     bool m_kwinWants = false;
     bool m_fcitxShown = false;
     bool m_visible = false;
+    bool m_toldKWinFailure = false;
     bool m_plainTyping = false;
     bool m_backendAvailable = false;
     QString m_problem;
