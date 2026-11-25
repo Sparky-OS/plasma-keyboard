@@ -142,6 +142,13 @@ add_subdirectory(qmlplugin)
 
 install(DIRECTORY layouts DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
 install(DIRECTORY layouts-fcitx DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
+# Fcitx 5 mode uses Plasma Keyboard's own layout for every locale layouts-fcitx does not hold: a relative link each
+file(GLOB _plasma_keyboard_layouts RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/layouts ${CMAKE_CURRENT_SOURCE_DIR}/layouts/*)
+foreach(_layout ${_plasma_keyboard_layouts})
+    if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/layouts-fcitx/${_layout})
+        install(CODE "file(CREATE_LINK ../layouts/${_layout} \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard/layouts-fcitx/${_layout}\" SYMBOLIC)")
+    endif()
+endforeach()
 install(DIRECTORY overlay/diacritics DESTINATION ${CMAKE_INSTALL_PREFIX}/share/plasma/keyboard)
 
 install(
